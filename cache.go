@@ -83,7 +83,7 @@ func (self *SliceCacheTTL) Get(key interface{}) (ret []Timeable, ok bool) {
 }
 
 func (self *SliceCacheTTL) ExpireAll() int {
-	return self.expire(time.Now().Add(self.ttl))
+	return self.expire(time.Now().Add(self.ttl * 2))
 }
 
 type SimpleTime struct {

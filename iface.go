@@ -10,6 +10,7 @@ type ExpirationHandler func(key interface{}, arr []Timeable)
 type CacheTtl interface {
 	Append(key interface{}, value Timeable) error
 	Get(key interface{}) (ret []Timeable, ok bool)
+	ExpireAll() int // Returns number of expired items
 }
 
 type CacheTtlFactory interface {

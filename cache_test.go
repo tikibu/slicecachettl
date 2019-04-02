@@ -254,3 +254,27 @@ func BenchmarkCache1(b *testing.B) {
 	}
 	//fmt.Printf("total: %v, nkeys: %v", total_n_expired, n_expired)
 }
+
+func TestExpireAll(t *testing.T) {
+	cache := Simple(time.Millisecond*100, time.Millisecond*10)
+	start := time.Now()
+	const KEYS = 10
+	for key := 0; key < KEYS; key++ {
+		cache.Append(key, &TimeableTest{K: int(key), V: key, Ts: start})
+	}
+
+	for key := 0; key < KEYS; key++ {
+		v, ok := cache.Get(key)
+		assert.True(t, ok)
+		assert.NotNil(t, v)
+	}
+
+	assert.Equal(t, KEYS, cache.ExpireAll())
+
+	for key := 0; key < KEYS; key++ {
+		v, ok := cache.Get(key)
+		assert.False(t, ok)
+		assert.Nil(t, v)
+	}
+
+}

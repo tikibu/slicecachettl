@@ -13,25 +13,26 @@ type SliceCacheTTL struct {
 	defaultSliceSize int
 	mu               sync.Mutex //read op is rare
 	ttl              time.Duration
-	onExpiration      ExpirationHandler
+	onExpiration     ExpirationHandler
 	expPool          chan time.Time
 }
 
-func (self *SliceCacheTTL) expire(now time.Time) {
+func (self *SliceCacheTTL) expire(now time.Time) (expired int) {
 	for {
 		self.mu.Lock()
 		e := self.expirations.Back()
-		if e == nil{ //an empty expiration queue
+		if e == nil { //an empty expiration queue
 			self.mu.Unlock()
-			return
+			return expired
 		}
 		item := e.Value.(*Item)
 		if item.Value.GetTS().Add(self.ttl).After(now) { // we deleted all till this moment
 			self.mu.Unlock()
-			return
+			return expired
 		}
 
 		self.expirations.Remove(e)
+		expired += 1
 		v, ok := self.mp[item.Key]
 		if ok {
 			delete(self.mp, item.Key)
@@ -79,6 +80,10 @@ func (self *SliceCacheTTL) Get(key interface{}) (ret []Timeable, ok bool) {
 	ret, ok = self.mp[key]
 	self.mu.Unlock()
 	return
+}
+
+func (self *SliceCacheTTL) ExpireAll() int {
+	return self.expire(time.Now().Add(self.ttl * 2))
 }
 
 type SimpleTime struct {

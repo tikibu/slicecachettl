@@ -2,6 +2,7 @@ package slicecachettl
 
 import (
 	"container/list"
+	"log"
 	"sync"
 	"time"
 )
@@ -53,7 +54,13 @@ func (self *SliceCacheTTL) Append(key interface{}, value Timeable) error {
 	if value == nil {
 		return nil
 	}
-	self.expPool <- value.GetTS()
+	select {
+	case self.expPool <- value.GetTS():
+	default:
+		log.Println("slicecachettl channel is blocked")
+		self.expPool <- value.GetTS()
+	}
+
 	if key == nil {
 		return nil
 	}
@@ -113,12 +120,12 @@ const DEFAULT_EXPIRATION_CHAN_SIZE = 10000
 
 func (self *Cache) WithExpirationHandler(onExpiration ExpirationHandler,
 	ttl time.Duration,
-	maxresolution time.Duration) CacheTtl  {
+	maxresolution time.Duration) CacheTtl {
 	return self.Custom(onExpiration, ttl, MakeMaxResolutionChan(maxresolution), DEFAULT_SLICE_SIZE, DEFAULT_EXPIRATION_CHAN_SIZE)
 }
 
 func (self *Cache) Simple(ttl time.Duration,
-	maxresolution time.Duration) CacheTtl  {
+	maxresolution time.Duration) CacheTtl {
 	return self.Custom(func(key interface{}, arr []Timeable) {}, ttl,
 		MakeMaxResolutionChan(maxresolution), DEFAULT_SLICE_SIZE, DEFAULT_EXPIRATION_CHAN_SIZE)
 }
@@ -126,7 +133,7 @@ func (self *Cache) Simple(ttl time.Duration,
 func (self *Cache) Custom(onExpiration ExpirationHandler, ttl time.Duration,
 	expirationResolution chan Timeable, defaultSliceSize int, expirationChanSize int) CacheTtl {
 	cache := &SliceCacheTTL{
-		onExpiration:      onExpiration,
+		onExpiration:     onExpiration,
 		ttl:              ttl,
 		defaultSliceSize: defaultSliceSize,
 		mp:               MP{},
@@ -146,6 +153,3 @@ func (self *Cache) Custom(onExpiration ExpirationHandler, ttl time.Duration,
 	}()
 	return cache
 }
-
-
-

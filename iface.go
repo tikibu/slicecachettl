@@ -7,6 +7,8 @@ type Timeable interface {
 }
 
 type ExpirationHandler func(key interface{}, arr []Timeable)
+type InstrumentationHandler func(mapLen, listLen, chanLen int)
+
 type CacheTtl interface {
 	Append(key interface{}, value Timeable) error
 	Get(key interface{}) (ret []Timeable, ok bool)

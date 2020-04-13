@@ -17,5 +17,5 @@ func Custom(onExpiration ExpirationHandler,
 	expirationResolution chan Timeable,
 	defaultSliceSize int,
 	expirationChanSize int) CacheTtl {
-	return Factory.Custom(onExpiration, ttl, expirationResolution, defaultSliceSize, expirationChanSize)
+	return Factory.Custom(onExpiration, nil, ttl, expirationResolution, defaultSliceSize, expirationChanSize)
 }

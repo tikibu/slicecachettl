@@ -13,6 +13,7 @@ type CacheTtl interface {
 	Append(key interface{}, value Timeable) error
 	Get(key interface{}) (ret []Timeable, ok bool)
 	ExpireAll() int // Returns number of expired items
+	ExpireCustom(d time.Duration) int
 }
 
 type CacheTtlFactory interface {

@@ -86,6 +86,10 @@ func (self *SliceCacheTTL) ExpireAll() int {
 	return self.expire(time.Now().Add(self.ttl * 2))
 }
 
+func (self *SliceCacheTTL) ExpireCustom(d time.Duration) int {
+	return self.expire(time.Now().Add(d))
+}
+
 type SimpleTime struct {
 	Ts time.Time
 }

@@ -49,6 +49,30 @@ type Item struct {
 	Value Timeable
 }
 
+// This is a function that "Locks" a certain key
+// for a number of seconds in expiration
+func (self *SliceCacheTTL) CheckAndLock(key interface{}, value Timeable) bool {
+	if value == nil {
+		return false
+	}
+	self.expPool <- value.GetTS()
+	if key == nil {
+		return false
+	}
+	self.mu.Lock()
+	_, ok := self.mp[key]
+	ret := true
+	if !ok{
+		tm := make([]Timeable, 1, 1)
+		tm[0] = value
+		self.mp[key] = tm
+		self.expirations.PushFront(&Item{Key: key, Value: value})
+		ret = false
+	}
+	self.mu.Unlock()
+	return ret
+}
+
 func (self *SliceCacheTTL) Append(key interface{}, value Timeable) error {
 	if value == nil {
 		return nil

@@ -114,6 +114,43 @@ func TestWithExpirationHandler(t *testing.T) {
 
 }
 
+func TestLock(t *testing.T) {
+	var n_expired int32
+	cache := WithExpirationHandler(func(key interface{}, arr []Timeable) {
+		atomic.AddInt32(&n_expired, 1)
+	},
+		time.Millisecond*100, time.Millisecond*10)
+
+	start := time.Now()
+	const KEYS = 10
+	for key := 0; key <= KEYS; key++ {
+		ret := cache.CheckAndLock(key, &TimeableTest{K: int(key), V: key, Ts: start})
+		assert.False(t, ret)
+	}
+
+	for key := 0; key <= KEYS; key++ {
+		ret := cache.CheckAndLock(key, &TimeableTest{K: int(key), V: key, Ts: start})
+		assert.True(t, ret)
+	}
+
+
+	for key := 0; key <= KEYS; key++ {
+		v, ok := cache.Get(key)
+		assert.True(t, ok)
+		assert.NotNil(t, v)
+		assert.Equal(t, 1, len(v)) // we are only adding once
+	}
+
+	time.Sleep(time.Millisecond * 200)
+	for key := 0; key <= KEYS; key++ {
+		v, ok := cache.Get(key)
+		assert.False(t, ok)
+		assert.Nil(t, v)
+	}
+
+}
+
+
 func TestSimple(t *testing.T) {
 	cache := Simple(time.Millisecond*100, time.Millisecond*10)
 	start := time.Now()

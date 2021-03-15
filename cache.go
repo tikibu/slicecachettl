@@ -49,6 +49,30 @@ type Item struct {
 	Value Timeable
 }
 
+// This is a function that "Locks" a certain key
+// for a number of seconds in expiration
+func (self *SliceCacheTTL) CheckAndLock(key interface{}, value Timeable) bool {
+	if value == nil {
+		return false
+	}
+	self.expPool <- value.GetTS()
+	if key == nil {
+		return false
+	}
+	self.mu.Lock()
+	_, ok := self.mp[key]
+	ret := true
+	if !ok{
+		tm := make([]Timeable, 1, 1)
+		tm[0] = value
+		self.mp[key] = tm
+		self.expirations.PushFront(&Item{Key: key, Value: value})
+		ret = false
+	}
+	self.mu.Unlock()
+	return ret
+}
+
 func (self *SliceCacheTTL) Append(key interface{}, value Timeable) error {
 	if value == nil {
 		return nil
@@ -86,6 +110,10 @@ func (self *SliceCacheTTL) ExpireAll() int {
 	return self.expire(time.Now().Add(self.ttl * 2))
 }
 
+func (self *SliceCacheTTL) ExpireCustom(d time.Duration) int {
+	return self.expire(time.Now().Add(d))
+}
+
 type SimpleTime struct {
 	Ts time.Time
 }
@@ -113,20 +141,20 @@ const DEFAULT_EXPIRATION_CHAN_SIZE = 10000
 
 func (self *Cache) WithExpirationHandler(onExpiration ExpirationHandler,
 	ttl time.Duration,
-	maxresolution time.Duration) CacheTtl  {
-	return self.Custom(onExpiration, ttl, MakeMaxResolutionChan(maxresolution), DEFAULT_SLICE_SIZE, DEFAULT_EXPIRATION_CHAN_SIZE)
+	maxresolution time.Duration) CacheTtl {
+	return self.Custom(onExpiration, nil, ttl, MakeMaxResolutionChan(maxresolution), DEFAULT_SLICE_SIZE, DEFAULT_EXPIRATION_CHAN_SIZE)
 }
 
 func (self *Cache) Simple(ttl time.Duration,
-	maxresolution time.Duration) CacheTtl  {
-	return self.Custom(func(key interface{}, arr []Timeable) {}, ttl,
+	maxresolution time.Duration) CacheTtl {
+	return self.Custom(func(key interface{}, arr []Timeable) {}, nil, ttl,
 		MakeMaxResolutionChan(maxresolution), DEFAULT_SLICE_SIZE, DEFAULT_EXPIRATION_CHAN_SIZE)
 }
 
-func (self *Cache) Custom(onExpiration ExpirationHandler, ttl time.Duration,
+func (self *Cache) Custom(onExpiration ExpirationHandler, insHandler InstrumentationHandler, ttl time.Duration,
 	expirationResolution chan Timeable, defaultSliceSize int, expirationChanSize int) CacheTtl {
 	cache := &SliceCacheTTL{
-		onExpiration:      onExpiration,
+		onExpiration:     onExpiration,
 		ttl:              ttl,
 		defaultSliceSize: defaultSliceSize,
 		mp:               MP{},
@@ -144,8 +172,13 @@ func (self *Cache) Custom(onExpiration ExpirationHandler, ttl time.Duration,
 			cache.expire(ts)
 		}
 	}()
+	if insHandler != nil {
+		go func() {
+			for {
+				time.Sleep(time.Second)
+				insHandler(len(cache.mp), cache.expirations.Len(), len(cache.expPool))
+			}
+		}()
+	}
 	return cache
 }
-
-
-

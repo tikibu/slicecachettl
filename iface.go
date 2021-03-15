@@ -7,10 +7,14 @@ type Timeable interface {
 }
 
 type ExpirationHandler func(key interface{}, arr []Timeable)
+type InstrumentationHandler func(mapLen, listLen, chanLen int)
+
 type CacheTtl interface {
 	Append(key interface{}, value Timeable) error
+	CheckAndLock(key interface{}, value Timeable) bool
 	Get(key interface{}) (ret []Timeable, ok bool)
 	ExpireAll() int // Returns number of expired items
+	ExpireCustom(d time.Duration) int
 }
 
 type CacheTtlFactory interface {
